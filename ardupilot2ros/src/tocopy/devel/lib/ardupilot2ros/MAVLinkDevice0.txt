@@ -1,0 +1,292 @@
+% Server TCP port (e.g. :4001), client IP address and TCP port (e.g. 127.0.0.1:4001) or local RS232 port
+%127.0.0.1:5760
+%COM12
+127.0.0.1:5762
+% BaudRate
+115200
+% Timeout (in ms)
+1500
+% threadperiod (in ms, require associated thread)
+50
+% bSaveRawData (require associated thread)
+1
+% bExternal (0 if the data can be used for the state estimation, 1 otherwise and to enable Follow Me)
+1
+% quality_threshold
+1
+% flow_comp_m_threshold
+0.0
+% bDefaultVrToZero
+0
+% bDisableSendHeartbeat
+1
+% chrono_heartbeat_period
+1
+% bResetToDefault
+0
+% bDisableArmingCheck
+0
+% bOverridePWMAtStartup
+0
+% bForceStabilizeModeAtStartup
+0
+% bArmAtStartup
+0
+% mavlink_comm (from 0 to 4)
+0
+% system_id (0 : all, 1 : vehicle, 81 : PX4FLOW, 255 : GCS)
+255
+% component_id (0 : all, 1 : autopilot, 50 : PX4FLOW, 190 : Mission Planner, see also enum MAV_COMPONENT)
+1
+% target_system (0 : all, 1 : vehicle, 81 : PX4FLOW, 255 : GCS)
+1
+% target_component (0 : all, 1 : autopilot, 50 : PX4FLOW, 190 : Mission Planner, see also enum MAV_COMPONENT)
+1
+% bForceDefaultMAVLink1 (0 to enable default MAVLink v2 protocol, 1 to force to default MAVLink v1)
+1
+% ManualControlMode (-1 to disable, 0 to send RC_OVERRIDE, 1 to send MANUAL_CONTROL, 2 to send RC_OVERRIDE+MANUAL_CONTROL (only joystick buttons), 3 to send SET_ATTITUDE_TARGET (Copter needs to be in Guided mode) MAVLink messages)
+0
+% bDefaultDisablePWMOverride
+1
+% overridechan (RC input channel used to disable RC override, from 1 to 18, set to higher if unused)
+6
+% channel 0
+% MinPW (in us)
+1000
+% MidPW (in us)
+1500
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+1500
+% ThresholdPW (in us)
+10
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
+% channel 1
+% MinPW (in us)
+1000
+% MidPW (in us)
+1500
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+1500
+% ThresholdPW (in us)
+10
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
+% channel 2
+% MinPW (in us)
+1000
+% MidPW (in us)
+1000
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+1000
+% ThresholdPW (in us)
+0
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
+% channel 3
+% MinPW (in us)
+1000
+% MidPW (in us)
+1500
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+1500
+% ThresholdPW (in us)
+10
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
+% channel 4
+% MinPW (in us)
+1000
+% MidPW (in us)
+1500
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+1000
+% ThresholdPW (in us)
+10
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
+% channel 5
+% MinPW (in us)
+1000
+% MidPW (in us)
+1500
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+0
+% ThresholdPW (in us)
+10
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
+% channel 6
+% MinPW (in us)
+800
+% MidPW (in us)
+800
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+800
+% ThresholdPW (in us)
+10
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
+% channel 7
+% MinPW (in us)
+800
+% MidPW (in us)
+800
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+800
+% ThresholdPW (in us)
+10
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
+% channel 8
+% MinPW (in us)
+800
+% MidPW (in us)
+800
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+800
+% ThresholdPW (in us)
+10
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
+% channel 9
+% MinPW (in us)
+800
+% MidPW (in us)
+800
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+800
+% ThresholdPW (in us)
+10
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
+% channel 10
+% MinPW (in us)
+800
+% MidPW (in us)
+800
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+800
+% ThresholdPW (in us)
+10
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
+% channel 11
+% MinPW (in us)
+800
+% MidPW (in us)
+800
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+800
+% ThresholdPW (in us)
+10
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
+% channel 12
+% MinPW (in us)
+800
+% MidPW (in us)
+800
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+800
+% ThresholdPW (in us)
+10
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
+% channel 13
+% MinPW (in us)
+800
+% MidPW (in us)
+800
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+800
+% ThresholdPW (in us)
+10
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
+% channel 14
+% MinPW (in us)
+800
+% MidPW (in us)
+800
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+800
+% ThresholdPW (in us)
+10
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
+% channel 15
+% MinPW (in us)
+800
+% MidPW (in us)
+800
+% MaxPW (in us)
+2000
+% InitPW (in us, 0 to disable channel)
+800
+% ThresholdPW (in us)
+10
+% CoefPW (-1 or 1)
+1
+% bProportionalPW (0 or 1)
+1
