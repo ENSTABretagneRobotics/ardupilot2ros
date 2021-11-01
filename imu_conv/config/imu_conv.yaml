@@ -1,0 +1,20 @@
+rate: 50
+# Homogeneous coordinates : see e.g. p17 www.ensta-bretagne.fr/lebars/Obs_et_filt_de_Kalman.pdf
+angular_velocity_transform_matrix: [  1,  0,  0,  0,
+                                      0,  1,  0,  0,
+                                      0,  0,  1,  0,
+                                      0,  0,  0,  1]
+linear_acceleration_transform_matrix: [  1,  0,  0,  0,
+                                         0,  1,  0,  0,
+                                         0,  0,  1,  0,
+                                         0,  0,  0,  1]
+RPY_transform_matrix: [  1,  0,  0,  0,
+                         0,  1,  0,  0,
+                         0,  0,  1,  0,
+                         0,  0,  0,  1]
+subscriber:
+  topic: "/imu"
+  queue: 1000
+publisher:
+  topic: "/imu/data"
+  queue: 1000

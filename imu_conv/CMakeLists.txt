@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.0.2)
-project(ardupilot2ros)
+cmake_minimum_required(VERSION 2.8...3.16)
+project(imu_conv)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -107,7 +107,7 @@ find_package(Eigen3 REQUIRED)
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS ${Eigen3_INCLUDE_DIRS}
-#  LIBRARIES ardupilot2ros
+#  LIBRARIES imu_conv
   CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs sensor_msgs tf
 #  DEPENDS system_lib
 )
@@ -126,7 +126,7 @@ include_directories(
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/ardupilot2ros.cpp
+#   src/${PROJECT_NAME}/imu_conv.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -137,7 +137,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node src/ardupilot2ros_node.cpp src/VectorNavInterface.cpp src/MAVLinkDevice.cpp src/Globals.cpp src/interval.cpp src/iboolean.cpp src/OSTimer.c src/OSNet.c src/OSMisc.c src/OSThread.c src/OSTime.c src/OSCore.c)
+add_executable(${PROJECT_NAME}_node src/imu_conv_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -145,23 +145,14 @@ add_executable(${PROJECT_NAME}_node src/ardupilot2ros_node.cpp src/VectorNavInte
 ## e.g. "rosrun someones_pkg node" instead of "rosrun someones_pkg someones_pkg_node"
 # set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
 
-add_definitions(-D ENABLE_GETTIMEOFDAY_WIN32 -D DISABLE_OPENCV_SUPPORT)
-
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-if(WIN32)
-target_link_libraries(${PROJECT_NAME}_node
-  ${catkin_LIBRARIES}
-  WS2_32
-)
-else()
 target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
 )
-endif()
 
 #############
 ## Install ##
@@ -210,7 +201,7 @@ endif()
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_ardupilot2ros.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_imu_conv.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

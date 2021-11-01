@@ -38,7 +38,7 @@ vel:
                               0,  0,  1,  0,
                               0,  0,  0,  1]
 bOverrideFixStatus: true
-szVectorNavInterfacePath: "192.168.0.16:5765"
+szVectorNavInterfacePath: "127.0.0.1:5765"
 VectorNavInterfaceBaudRate: 230400
 VectorNavInterfaceTimeout: 2000
 rate: 50
