@@ -20,7 +20,7 @@
 #include "MAVLinkProtocol.h"
 
 // Need to be undefined at the end of the file...
-// min and max might cause incompatibilities with GCC...
+// min and max might cause incompatibilities...
 #ifndef max
 #define max(a,b) (((a) > (b)) ? (a) : (b))
 #endif // !max
@@ -1411,7 +1411,7 @@ inline int DisconnectMAVLinkDevice(MAVLINKDEVICE* pMAVLinkDevice)
 THREAD_PROC_RETURN_VALUE MAVLinkDeviceThread(void* pParam);
 #endif // !DISABLE_MAVLINKDEVICETHREAD
 
-// min and max might cause incompatibilities with GCC...
+// min and max might cause incompatibilities...
 #ifdef max
 #undef max
 #endif // max
