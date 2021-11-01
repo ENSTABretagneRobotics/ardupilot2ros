@@ -1,7 +1,7 @@
 % Server TCP port (e.g. :4001), client IP address and TCP port (e.g. 127.0.0.1:4001) or local RS232 port
 %127.0.0.1:5760
 %COM12
-127.0.0.1:5762
+127.0.0.1:5760
 % BaudRate
 115200
 % Timeout (in ms)

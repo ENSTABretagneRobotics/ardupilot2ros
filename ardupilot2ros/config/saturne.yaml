@@ -1,0 +1,12 @@
+cmd_vel:
+  topic: "/cmd_vel"
+imu:
+  topic: "/imu/data_nwu"
+fix:
+  topic: "/fix"
+vel:
+  topic: "/vel"
+bOverrideFixStatus: true
+max_linear_x_speed: 3.0
+max_angular_z_speed: 3.0
+szVectorNavInterfacePath: "127.0.0.1:5765"

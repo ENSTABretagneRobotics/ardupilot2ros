@@ -39,13 +39,15 @@ int main(int argc, char** argv) {
 
     ros::Publisher cmd_vel_pub = nh.advertise<geometry_msgs::Twist>(nh.param<std::string>("cmd_vel/topic", "/cmd_vel"), nh.param("cmd_vel/queue", 1000));
     ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>(nh.param<std::string>("imu/topic", "/imu/data"), nh.param("imu/queue", 1000), imuCb);
-    ros::Subscriber fix_sub = nh.subscribe<sensor_msgs::NavSatFix>(nh.param<std::string>("fix/topic", "/navsat/fix"), nh.param("fix/queue", 1000), fixCb);
+    ros::Subscriber fix_sub = nh.subscribe<sensor_msgs::NavSatFix>(nh.param<std::string>("fix/topic", "/fix"), nh.param("fix/queue", 1000), fixCb);
     ros::Subscriber vel_sub = nh.subscribe<geometry_msgs::TwistStamped>(nh.param<std::string>("vel/topic", "/vel"), nh.param("vel/queue", 1000), velCb);
+
+	bool bOverrideFixStatus(nh.param("bOverrideFixStatus", true));
 
 	double max_linear_x_speed(nh.param("max_linear_x_speed", 3.0));
 	double max_angular_z_speed(nh.param("max_angular_z_speed", 3.0));
 
-	strcpy(szVectorNavInterfacePath, (nh.param<std::string>("szVectorNavInterfacePath", "192.168.0.16:5765")).c_str());
+	strcpy(szVectorNavInterfacePath, (nh.param<std::string>("szVectorNavInterfacePath", "127.0.0.1:5765")).c_str());
 	VectorNavInterfaceBaudRate = (nh.param("VectorNavInterfaceBaudRate", 230400));
 	VectorNavInterfaceTimeout = (nh.param("VectorNavInterfaceTimeout", 2000));
 
@@ -57,7 +59,6 @@ int main(int argc, char** argv) {
     AirPressure = (nh.param("AirPressure", 1.0));
 
     robid = BUGGY_ROBID; // For MAVLinkDevice...
-    //target_followme = MAVLINKDEVICE0_TARGET; // For MAVLinkDevice...
     InitGlobals();
 
     ros::Duration(2.0).sleep();
@@ -83,10 +84,36 @@ int main(int argc, char** argv) {
         x_gps = x; y_gps = y; z_gps = z;
         cog_gps = fmod_2PI(M_PI/2.0+atan2(vel_sub_msg.twist.linear.y,vel_sub_msg.twist.linear.x)-angle_env);
         sog = sqrt(pow(vel_sub_msg.twist.linear.x,2)+pow(vel_sub_msg.twist.linear.y,2));
-        GNSSqualitySimulator = AUTONOMOUS_GNSS_FIX;//RTK_FIXED;
-        GPS_high_acc_nbsat = GPS_med_acc_nbsat = GPS_low_acc_nbsat = 20;
-        GPS_high_acc_HDOP = GPS_med_acc_HDOP = GPS_low_acc_HDOP = 0.8;
         xhat = x; yhat = y; zhat = z;
+		if (bOverrideFixStatus)
+		{
+			GNSSqualitySimulator = AUTONOMOUS_GNSS_FIX;
+			GPS_high_acc_nbsat = GPS_med_acc_nbsat = GPS_low_acc_nbsat = 20;
+			GPS_high_acc_HDOP = GPS_med_acc_HDOP = GPS_low_acc_HDOP = 1.0;
+		}
+		else
+		{
+			switch (fix_sub_msg.status.status)
+			{
+			case sensor_msgs::NavSatStatus::STATUS_FIX:
+			case sensor_msgs::NavSatStatus::STATUS_SBAS_FIX:
+				GNSSqualitySimulator = AUTONOMOUS_GNSS_FIX;
+				GPS_high_acc_nbsat = GPS_med_acc_nbsat = GPS_low_acc_nbsat = 20;
+				GPS_high_acc_HDOP = GPS_med_acc_HDOP = GPS_low_acc_HDOP = 1.0;
+				break;
+			case sensor_msgs::NavSatStatus::STATUS_GBAS_FIX:
+				GNSSqualitySimulator = RTK_FLOAT;
+				GPS_high_acc_nbsat = GPS_med_acc_nbsat = GPS_low_acc_nbsat = 20;
+				GPS_high_acc_HDOP = GPS_med_acc_HDOP = GPS_low_acc_HDOP = 0.8;
+				break;
+			case sensor_msgs::NavSatStatus::STATUS_NO_FIX:
+			default:
+				GNSSqualitySimulator = GNSS_NO_FIX;
+				GPS_high_acc_nbsat = GPS_med_acc_nbsat = GPS_low_acc_nbsat = 0;
+				GPS_high_acc_HDOP = GPS_med_acc_HDOP = GPS_low_acc_HDOP = 0;
+				break;
+			}
+		}
         tf::Quaternion q;
 		double roll = 0, pitch = 0, yaw = 0;
 		tf::quaternionMsgToTF(imu_sub_msg.orientation, q);

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+
+  <node name="ardupilot2ros_node" pkg="ardupilot2ros" type="ardupilot2ros_node" output="screen" respawn="true">
+    <rosparam command="load" file="$(find ardupilot2ros)/config/saturne.yaml" />
+  </node>
+
+  <!-- NWU /imu/data emulation -->
+  <node name="ardupilot2ros_imu_conv_node" pkg="imu_conv" type="imu_conv_node" output="screen" respawn="true">
+    <rosparam command="load" file="$(find ardupilot2ros)/config/imu_conv_saturne.yaml"/>
+  </node>
+
+</launch>

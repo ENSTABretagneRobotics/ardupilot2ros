@@ -218,6 +218,10 @@ THREAD_PROC_RETURN_VALUE MAVLinkDeviceThread(void* pParam)
 						EnvCoordSystem2GPS(lat_env, long_env, alt_env, angle_env, Center(xhat), Center(yhat), Center(zhat), &latitude, &longitude, &altitude);
 						yaw = fmod_360_pos_rad2deg(-angle_env-Center(psihat)+M_PI/2.0);
 
+						// Temp...
+						if ((mavlinkdata.servo_output_raw.servo3_raw)&&(mavlinkdata.servo_output_raw.servo3_raw != 65535)) u_servo_out_MAVLinkDevice[deviceid] = (mavlinkdata.servo_output_raw.servo3_raw-1500.0)/500.0;
+						if ((mavlinkdata.servo_output_raw.servo1_raw)&&(mavlinkdata.servo_output_raw.servo1_raw != 65535)) uw_servo_out_MAVLinkDevice[deviceid] = -(mavlinkdata.servo_output_raw.servo1_raw-1500.0)/500.0;
+
 						LeaveCriticalSection(&StateVariablesCS);
 
 						uSleep(1000*threadperiod/2);
@@ -993,10 +997,6 @@ THREAD_PROC_RETURN_VALUE MAVLinkDeviceThread(void* pParam)
 #pragma endregion								
 					uSleep(1000*threadperiod/2);
 				}
-
-				// Temp...
-				if ((mavlinkdata.servo_output_raw.servo3_raw)&&(mavlinkdata.servo_output_raw.servo3_raw != 65535)) u_servo_out_MAVLinkDevice[deviceid] = (mavlinkdata.servo_output_raw.servo3_raw-1500.0)/500.0;
-				if ((mavlinkdata.servo_output_raw.servo1_raw)&&(mavlinkdata.servo_output_raw.servo1_raw != 65535)) uw_servo_out_MAVLinkDevice[deviceid] = -(mavlinkdata.servo_output_raw.servo1_raw-1500.0)/500.0;
 
 				if (mavlinkdevice.bSaveRawData)
 				{
