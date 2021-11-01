@@ -2,7 +2,7 @@
 <launch>
 
   <node name="ardupilot2ros_node" pkg="ardupilot2ros" type="ardupilot2ros_node" output="screen" respawn="true">
-    <rosparam command="load" file="$(find ardupilot2ros)/config/warthog.yaml"/>
+    <rosparam command="load" file="$(find ardupilot2ros)/config/warthog_cpr_sim.yaml"/>
   </node>
 
   <!-- /vel emulation -->
