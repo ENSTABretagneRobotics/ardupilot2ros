@@ -1,64 +1,54 @@
-#include <ros/ros.h>
-#include <geometry_msgs/Twist.h>
-#include <tf/tf.h>
+#include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/twist.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
 #include <Eigen/Dense>
 
-geometry_msgs::Twist twist_sub_msg;
+geometry_msgs::msg::Twist twist_sub_msg;
 
-void twist_sub_cb(const geometry_msgs::Twist::ConstPtr& twist)
+void twist_sub_cb(const geometry_msgs::msg::Twist::ConstSharedPtr& twist)
 {
 	twist_sub_msg = *twist;
 }
 
-// Inspired from https://github.com/cra-ros-pkg/robot_localization/blob/32896d6d1aaec5a92c3a65e5f16dfc0b859a7d26/src/ros_filter.cpp#L1556 and 
-// https://github.com/cra-ros-pkg/robot_localization/blob/32896d6d1aaec5a92c3a65e5f16dfc0b859a7d26/params/ukf_template.yaml#L209
-// Should check more parsing step...?
-Eigen::MatrixXd matrixparam(ros::NodeHandle nh, const std::string param, Eigen::MatrixXd matrixdefault)
+Eigen::MatrixXd matrixparam(const rclcpp::Node::SharedPtr& nh, const std::string& param, const Eigen::MatrixXd& matrixdefault)
 {
-	Eigen::MatrixXd matrix(matrixdefault);
-	XmlRpc::XmlRpcValue matrix_tmp;
-
-	nh.getParam(param, matrix_tmp);
-
-	if (matrix_tmp.getType() != XmlRpc::XmlRpcValue::TypeArray) return matrixdefault;
-
+	std::vector<double> defaults;
+	for (int i = 0; i < matrixdefault.rows(); i++)
+		for (int j = 0; j < matrixdefault.cols(); j++)
+			defaults.push_back(matrixdefault(i, j));
+	const auto values = nh->declare_parameter<std::vector<double>>(param, defaults);
+	if (values.size() != defaults.size())
+		throw std::invalid_argument(param + " must contain " + std::to_string(defaults.size()) + " values");
+	Eigen::MatrixXd matrix(matrixdefault.rows(), matrixdefault.cols());
 	for (int i = 0; i < matrix.rows(); i++)
-	{
 		for (int j = 0; j < matrix.cols(); j++)
-		{
-			// These matrices can cause problems if all the types
-			// aren't specified with decimal points. Handle that
-			// using string streams.
-			std::ostringstream ostr;
-			ostr << matrix_tmp[matrix.cols()*i+j];
-			std::istringstream istr(ostr.str());
-			istr >> matrix(i, j);
-		}
-	}
-
+			matrix(i, j) = values[matrix.cols()*i+j];
 	return matrix;
 }
 
 int main(int argc, char** argv) {
-	ros::init(argc, argv, "twist_conv");
-	ros::NodeHandle nh("~");
+	rclcpp::init(argc, argv);
+	auto nh = std::make_shared<rclcpp::Node>("twist_conv");
 
-	twist_sub_msg = geometry_msgs::Twist();
+	twist_sub_msg = geometry_msgs::msg::Twist();
 
-	ros::Subscriber sub = nh.subscribe<geometry_msgs::Twist>(nh.param<std::string>("subscriber/topic", "/twist"), nh.param("subscriber/queue", 1000), twist_sub_cb);
-	ros::Publisher pub = nh.advertise<geometry_msgs::Twist>(nh.param<std::string>("publisher/topic", "/cmd_vel"), nh.param("publisher/queue", 1000));
+	auto sub = nh->create_subscription<geometry_msgs::msg::Twist>(nh->declare_parameter<std::string>("subscriber.topic", "/twist"), nh->declare_parameter("subscriber.queue", 1000), twist_sub_cb);
+	auto pub = nh->create_publisher<geometry_msgs::msg::Twist>(nh->declare_parameter<std::string>("publisher.topic", "/cmd_vel"), nh->declare_parameter("publisher.queue", 1000));
 
-	Eigen::MatrixXd angular_transform_matrix = matrixparam(nh, "angular_transform_matrix", Eigen::MatrixXd(4, 4));
-	Eigen::MatrixXd linear_transform_matrix = matrixparam(nh, "linear_transform_matrix", Eigen::MatrixXd(4, 4));
+	Eigen::MatrixXd angular_transform_matrix = matrixparam(nh, "angular_transform_matrix", Eigen::MatrixXd::Identity(4, 4));
+	Eigen::MatrixXd linear_transform_matrix = matrixparam(nh, "linear_transform_matrix", Eigen::MatrixXd::Identity(4, 4));
 
-	ros::Rate rate(nh.param("rate", 50));
+	rclcpp::WallRate rate(nh->declare_parameter("rate", 50));
+	rclcpp::executors::SingleThreadedExecutor executor;
+	executor.add_node(nh);
 
-	while (ros::ok()) {
-		geometry_msgs::Twist twist_pub_msg;
+	while (rclcpp::ok()) {
+		geometry_msgs::msg::Twist twist_pub_msg;
 
 		rate.sleep();
 
-		ros::spinOnce();
+		if (!rclcpp::ok()) break;
+		executor.spin_some();
 
 		twist_pub_msg = twist_sub_msg;
 
@@ -74,8 +64,9 @@ int main(int argc, char** argv) {
 		twist_pub_msg.linear.y = linear_pub(1);
 		twist_pub_msg.linear.z = linear_pub(2);
 
-		pub.publish(twist_pub_msg);
+		pub->publish(twist_pub_msg);
 	}
 
+	rclcpp::shutdown();
 	return EXIT_SUCCESS;
 }

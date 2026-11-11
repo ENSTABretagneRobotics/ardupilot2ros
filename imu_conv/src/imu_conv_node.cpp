@@ -1,65 +1,58 @@
-#include <ros/ros.h>
-#include <sensor_msgs/Imu.h>
-#include <tf/tf.h>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/imu.hpp>
+#include <tf2/LinearMath/Quaternion.hpp>
+#include <tf2/LinearMath/Matrix3x3.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <Eigen/Dense>
 
-sensor_msgs::Imu imu_sub_msg;
+sensor_msgs::msg::Imu imu_sub_msg;
 
-void imu_sub_cb(const sensor_msgs::Imu::ConstPtr& imu)
+void imu_sub_cb(const sensor_msgs::msg::Imu::ConstSharedPtr& imu)
 {
 	imu_sub_msg = *imu;
 }
 
-// Inspired from https://github.com/cra-ros-pkg/robot_localization/blob/32896d6d1aaec5a92c3a65e5f16dfc0b859a7d26/src/ros_filter.cpp#L1556 and 
-// https://github.com/cra-ros-pkg/robot_localization/blob/32896d6d1aaec5a92c3a65e5f16dfc0b859a7d26/params/ukf_template.yaml#L209
-// Should check more parsing step...?
-Eigen::MatrixXd matrixparam(ros::NodeHandle nh, const std::string param, Eigen::MatrixXd matrixdefault)
+Eigen::MatrixXd matrixparam(const rclcpp::Node::SharedPtr& nh, const std::string& param, const Eigen::MatrixXd& matrixdefault)
 {
-	Eigen::MatrixXd matrix(matrixdefault);
-	XmlRpc::XmlRpcValue matrix_tmp;
-
-	nh.getParam(param, matrix_tmp);
-
-	if (matrix_tmp.getType() != XmlRpc::XmlRpcValue::TypeArray) return matrixdefault;
-
+	std::vector<double> defaults;
+	for (int i = 0; i < matrixdefault.rows(); i++)
+		for (int j = 0; j < matrixdefault.cols(); j++)
+			defaults.push_back(matrixdefault(i, j));
+	const auto values = nh->declare_parameter<std::vector<double>>(param, defaults);
+	if (values.size() != defaults.size())
+		throw std::invalid_argument(param + " must contain " + std::to_string(defaults.size()) + " values");
+	Eigen::MatrixXd matrix(matrixdefault.rows(), matrixdefault.cols());
 	for (int i = 0; i < matrix.rows(); i++)
-	{
 		for (int j = 0; j < matrix.cols(); j++)
-		{
-			// These matrices can cause problems if all the types
-			// aren't specified with decimal points. Handle that
-			// using string streams.
-			std::ostringstream ostr;
-			ostr << matrix_tmp[matrix.cols()*i+j];
-			std::istringstream istr(ostr.str());
-			istr >> matrix(i, j);
-		}
-	}
-
+			matrix(i, j) = values[matrix.cols()*i+j];
 	return matrix;
 }
 
 int main(int argc, char** argv) {
-	ros::init(argc, argv, "imu_conv");
-	ros::NodeHandle nh("~");
+	rclcpp::init(argc, argv);
+	auto nh = std::make_shared<rclcpp::Node>("imu_conv");
 
-	imu_sub_msg = sensor_msgs::Imu();
+	imu_sub_msg = sensor_msgs::msg::Imu();
+	imu_sub_msg.orientation.w = 1.0;
 
-	ros::Subscriber sub = nh.subscribe<sensor_msgs::Imu>(nh.param<std::string>("subscriber/topic", "/imu"), nh.param("subscriber/queue", 1000), imu_sub_cb);
-	ros::Publisher pub = nh.advertise<sensor_msgs::Imu>(nh.param<std::string>("publisher/topic", "/imu/data"), nh.param("publisher/queue", 1000));
+	auto sub = nh->create_subscription<sensor_msgs::msg::Imu>(nh->declare_parameter<std::string>("subscriber.topic", "/imu"), rclcpp::SensorDataQoS().keep_last(nh->declare_parameter("subscriber.queue", 1000)), imu_sub_cb);
+	auto pub = nh->create_publisher<sensor_msgs::msg::Imu>(nh->declare_parameter<std::string>("publisher.topic", "/imu/data"), nh->declare_parameter("publisher.queue", 1000));
 
-	Eigen::MatrixXd angular_velocity_transform_matrix = matrixparam(nh, "angular_velocity_transform_matrix", Eigen::MatrixXd(4, 4));
-	Eigen::MatrixXd linear_acceleration_transform_matrix = matrixparam(nh, "linear_acceleration_transform_matrix", Eigen::MatrixXd(4, 4));
-	Eigen::MatrixXd RPY_transform_matrix = matrixparam(nh, "RPY_transform_matrix", Eigen::MatrixXd(4, 4));
+	Eigen::MatrixXd angular_velocity_transform_matrix = matrixparam(nh, "angular_velocity_transform_matrix", Eigen::MatrixXd::Identity(4, 4));
+	Eigen::MatrixXd linear_acceleration_transform_matrix = matrixparam(nh, "linear_acceleration_transform_matrix", Eigen::MatrixXd::Identity(4, 4));
+	Eigen::MatrixXd RPY_transform_matrix = matrixparam(nh, "RPY_transform_matrix", Eigen::MatrixXd::Identity(4, 4));
 
-	ros::Rate rate(nh.param("rate", 50));
+	rclcpp::WallRate rate(nh->declare_parameter("rate", 50));
+	rclcpp::executors::SingleThreadedExecutor executor;
+	executor.add_node(nh);
 
-	while (ros::ok()) {
-		sensor_msgs::Imu imu_pub_msg;
+	while (rclcpp::ok()) {
+		sensor_msgs::msg::Imu imu_pub_msg;
 
 		rate.sleep();
 
-		ros::spinOnce();
+		if (!rclcpp::ok()) break;
+		executor.spin_some();
 
 		imu_pub_msg = imu_sub_msg;
 
@@ -75,10 +68,10 @@ int main(int argc, char** argv) {
 		imu_pub_msg.linear_acceleration.y = linear_acceleration_pub(1);
 		imu_pub_msg.linear_acceleration.z = linear_acceleration_pub(2);
 
-		tf::Quaternion q;
+		tf2::Quaternion q;
 		double roll = 0, pitch = 0, yaw = 0;
-		tf::quaternionMsgToTF(imu_sub_msg.orientation, q);
-		tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
+		tf2::fromMsg(imu_sub_msg.orientation, q);
+		tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
 		Eigen::Vector4d RPY_sub(roll, pitch, yaw, 1.0);
 		Eigen::Vector4d RPY_pub = RPY_transform_matrix*RPY_sub;
 		roll = RPY_pub(0); pitch = RPY_pub(1); yaw = RPY_pub(2);
@@ -88,8 +81,9 @@ int main(int argc, char** argv) {
 		imu_pub_msg.orientation.z = q[2];
 		imu_pub_msg.orientation.w = q[3];
 
-		pub.publish(imu_pub_msg);
+		pub->publish(imu_pub_msg);
 	}
 
+	rclcpp::shutdown();
 	return EXIT_SUCCESS;
 }
