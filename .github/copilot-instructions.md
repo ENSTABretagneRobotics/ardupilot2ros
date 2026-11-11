@@ -73,8 +73,22 @@ from documentation or compilation.
 
 ## Dependencies
 
-Dependencies available through the Ubuntu 24.04 or ROS 2 Jazzy apt repositories
-should be declared properly in `package.xml` and installed as binary packages.
+You may install additional Ubuntu packages needed for investigation, building,
+debugging or testing.
+
+Prefer binary packages available through the Ubuntu 24.04 or ROS 2 Jazzy apt
+repositories.
+
+Dependencies required to build or run the ROS packages themselves must be
+declared appropriately in package.xml rather than relying only on packages
+manually installed in the agent environment.
+
+Development, diagnostic and testing tools that are not dependencies of the
+ROS packages do not need to be added to package.xml.
+
+Do not modify .github/workflows/copilot-setup-steps.yml merely to make the
+current session pass. If you discover an additional tool that would be useful
+to preinstall for future Copilot sessions, mention it in the final report.
 
 Use binary packages from the Ubuntu 24.04 and ROS 2 Jazzy apt repositories
 wherever available.
