@@ -1,0 +1,32 @@
+name: Copilot Setup Steps
+
+on:
+  workflow_dispatch:
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Set up ROS 2 apt repository
+        uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: jazzy
+
+      - name: Install ROS 2 Jazzy and build tools
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ros-jazzy-ros-base \
+            python3-colcon-common-extensions \
+            python3-rosdep \
+            libeigen3-dev \
+            git \
+            wget
+
+      - name: Initialize rosdep
+        shell: bash
+        run: |
+          sudo rosdep init 2>/dev/null || true
+          rosdep update
