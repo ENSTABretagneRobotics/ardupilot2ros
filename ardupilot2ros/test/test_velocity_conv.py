@@ -44,6 +44,7 @@ def test_velocity_conversion(source):
                 rclpy.spin_once(node, timeout_sec=0.1)
             assert publisher.get_subscription_count() > 0
             invalid = Odometry()
+            invalid.pose.pose.orientation.w = 0.0
             invalid.twist.twist.linear.x = 2.0
             for _ in range(5):
                 publisher.publish(invalid)
