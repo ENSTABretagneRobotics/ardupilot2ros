@@ -41,10 +41,10 @@
 #endif // (((__GNUC__ == 4) && (__GNUC_MINOR__ >= 6)) || (__GNUC__ > 4))
 #endif // __GNUC__
 
-#include "mavlink/common/mavlink.h"
-#include "mavlink/ardupilotmega/mavlink_msg_rangefinder.h"
-#include "mavlink/ardupilotmega/mavlink_msg_hwstatus.h"
-#include "mavlink/ardupilotmega/mavlink_msg_wind.h"
+#include "mavlink/v2.0/common/mavlink.h"
+#include "mavlink/v2.0/ardupilotmega/mavlink_msg_rangefinder.h"
+#include "mavlink/v2.0/ardupilotmega/mavlink_msg_hwstatus.h"
+#include "mavlink/v2.0/ardupilotmega/mavlink_msg_wind.h"
 
 #ifdef __GNUC__
 // Restore the GCC warnings previously disabled.

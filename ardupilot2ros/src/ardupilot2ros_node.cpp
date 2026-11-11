@@ -1,58 +1,48 @@
 #include "MAVLinkDevice.h"
 #include "VectorNavInterface.h"
-#include <ros/ros.h>
-#include <geometry_msgs/Twist.h>
-#include <sensor_msgs/Imu.h>
-#include <sensor_msgs/NavSatFix.h>
-#include <tf/tf.h>
+#include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/twist.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
+#include <sensor_msgs/msg/imu.hpp>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
+#include <tf2/LinearMath/Quaternion.hpp>
+#include <tf2/LinearMath/Matrix3x3.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <Eigen/Dense>
 
-sensor_msgs::Imu imu_msg;
-sensor_msgs::NavSatFix fix_msg;
-geometry_msgs::TwistStamped vel_msg;
+sensor_msgs::msg::Imu imu_msg;
+sensor_msgs::msg::NavSatFix fix_msg;
+geometry_msgs::msg::TwistStamped vel_msg;
 
-// Inspired from https://github.com/cra-ros-pkg/robot_localization/blob/32896d6d1aaec5a92c3a65e5f16dfc0b859a7d26/src/ros_filter.cpp#L1556 and 
-// https://github.com/cra-ros-pkg/robot_localization/blob/32896d6d1aaec5a92c3a65e5f16dfc0b859a7d26/params/ukf_template.yaml#L209
-// Should check more parsing step...?
-Eigen::MatrixXd matrixparam(ros::NodeHandle nh, const std::string param, Eigen::MatrixXd matrixdefault)
+Eigen::MatrixXd matrixparam(const rclcpp::Node::SharedPtr& nh, const std::string& param, const Eigen::MatrixXd& matrixdefault)
 {
-	Eigen::MatrixXd matrix(matrixdefault);
-	XmlRpc::XmlRpcValue matrix_tmp;
-
-	nh.getParam(param, matrix_tmp);
-
-	if (matrix_tmp.getType() != XmlRpc::XmlRpcValue::TypeArray) return matrixdefault;
-
+	std::vector<double> defaults;
+	for (int i = 0; i < matrixdefault.rows(); i++)
+		for (int j = 0; j < matrixdefault.cols(); j++)
+			defaults.push_back(matrixdefault(i, j));
+	const auto values = nh->declare_parameter<std::vector<double>>(param, defaults);
+	if (values.size() != defaults.size())
+		throw std::invalid_argument(param + " must contain " + std::to_string(defaults.size()) + " values");
+	Eigen::MatrixXd matrix(matrixdefault.rows(), matrixdefault.cols());
 	for (int i = 0; i < matrix.rows(); i++)
-	{
 		for (int j = 0; j < matrix.cols(); j++)
-		{
-			// These matrices can cause problems if all the types
-			// aren't specified with decimal points. Handle that
-			// using string streams.
-			std::ostringstream ostr;
-			ostr << matrix_tmp[matrix.cols()*i+j];
-			std::istringstream istr(ostr.str());
-			istr >> matrix(i, j);
-		}
-	}
-
+			matrix(i, j) = values[matrix.cols()*i+j];
 	return matrix;
 }
 
-void imuCb(const sensor_msgs::Imu::ConstPtr& imu)
+void imuCb(const sensor_msgs::msg::Imu::ConstSharedPtr& imu)
 {
 	//ROS_INFO("I heard: [%f]", imu->angular_velocity.z);
 	imu_msg = *imu;
 }
 
-void fixCb(const sensor_msgs::NavSatFix::ConstPtr& fix)
+void fixCb(const sensor_msgs::msg::NavSatFix::ConstSharedPtr& fix)
 {
 	//ROS_INFO("I heard: [%f] [%f]", fix->latitude, fix->longitude);
 	fix_msg = *fix;
 }
 
-void velCb(const geometry_msgs::TwistStamped::ConstPtr& vel)
+void velCb(const geometry_msgs::msg::TwistStamped::ConstSharedPtr& vel)
 {
 	//ROS_INFO("I heard: [%f] [%f] [%f]", vel->twist.linear.x, vel->twist.linear.y, vel->twist.linear.z);
 	vel_msg = *vel;
@@ -63,64 +53,76 @@ int main(int argc, char** argv) {
 	THREAD_IDENTIFIER MAVLinkDeviceThreadId;
 	THREAD_IDENTIFIER VectorNavInterfaceThreadId;
 
-	ros::init(argc, argv, "ardupilot2ros");
-	ros::NodeHandle nh("~");
+	rclcpp::init(argc, argv);
+	auto nh = std::make_shared<rclcpp::Node>("ardupilot2ros");
 
-	imu_msg = sensor_msgs::Imu();
-	fix_msg = sensor_msgs::NavSatFix();
-	vel_msg = geometry_msgs::TwistStamped();
+	imu_msg = sensor_msgs::msg::Imu();
+	imu_msg.orientation.w = 1.0;
+	fix_msg = sensor_msgs::msg::NavSatFix();
+	vel_msg = geometry_msgs::msg::TwistStamped();
 
-	Eigen::MatrixXd cmd_vel_servos_to_angular_linear_transform_matrix = matrixparam(nh, "cmd_vel/servos_to_angular_linear_transform_matrix", Eigen::MatrixXd(7, 9));
+	Eigen::MatrixXd cmd_vel_servos_to_angular_linear_transform_matrix = matrixparam(nh, "cmd_vel.servos_to_angular_linear_transform_matrix", Eigen::MatrixXd::Zero(7, 9));
 
-	Eigen::MatrixXd imu_angular_velocity_transform_matrix = matrixparam(nh, "imu/angular_velocity_transform_matrix", Eigen::MatrixXd(4, 4));
-	Eigen::MatrixXd imu_linear_acceleration_transform_matrix = matrixparam(nh, "imu/linear_acceleration_transform_matrix", Eigen::MatrixXd(4, 4));
-	Eigen::MatrixXd imu_RPY_transform_matrix = matrixparam(nh, "imu/RPY_transform_matrix", Eigen::MatrixXd(4, 4));
+	Eigen::MatrixXd imu_angular_velocity_transform_matrix = matrixparam(nh, "imu.angular_velocity_transform_matrix", Eigen::MatrixXd::Identity(4, 4));
+	Eigen::MatrixXd imu_linear_acceleration_transform_matrix = matrixparam(nh, "imu.linear_acceleration_transform_matrix", Eigen::MatrixXd::Identity(4, 4));
+	Eigen::MatrixXd imu_RPY_transform_matrix = matrixparam(nh, "imu.RPY_transform_matrix", Eigen::MatrixXd::Identity(4, 4));
 
-	Eigen::MatrixXd vel_angular_transform_matrix = matrixparam(nh, "vel/angular_transform_matrix", Eigen::MatrixXd(4, 4));
-	Eigen::MatrixXd vel_linear_transform_matrix = matrixparam(nh, "vel/linear_transform_matrix", Eigen::MatrixXd(4, 4));
+	Eigen::MatrixXd vel_angular_transform_matrix = matrixparam(nh, "vel.angular_transform_matrix", Eigen::MatrixXd::Identity(4, 4));
+	Eigen::MatrixXd vel_linear_transform_matrix = matrixparam(nh, "vel.linear_transform_matrix", Eigen::MatrixXd::Identity(4, 4));
 
-	bool bOverrideFixStatus(nh.param("bOverrideFixStatus", true));
+	bool bOverrideFixStatus(nh->declare_parameter("bOverrideFixStatus", true));
 
 	// VectorNavInterface and MAVLinkDevice files are currently shared with another project, so there are some internal parameters to set and unnessary code...
 
-	strcpy(szVectorNavInterfacePath, (nh.param<std::string>("szVectorNavInterfacePath", "127.0.0.1:5765")).c_str());
-	VectorNavInterfaceBaudRate = (nh.param("VectorNavInterfaceBaudRate", 230400));
-	VectorNavInterfaceTimeout = (nh.param("VectorNavInterfaceTimeout", 2000));
+	strcpy(szVectorNavInterfacePath, (nh->declare_parameter<std::string>("szVectorNavInterfacePath", "127.0.0.1:5765")).c_str());
+	VectorNavInterfaceBaudRate = (nh->declare_parameter("VectorNavInterfaceBaudRate", 230400));
+	VectorNavInterfaceTimeout = (nh->declare_parameter("VectorNavInterfaceTimeout", 2000));
 
 	// Might not be necessary to change those parameters depending on the area since the conversions made will be in both directions,
 	// so errors related to the fact Earth is not flat should be cancelled...?
-	lat_env = (nh.param("lat_env", 48.418079));
-	long_env = (nh.param("long_env", -4.473487));
-	alt_env = (nh.param("alt_env", 88.0));
-	angle_env = (M_PI/2.0-nh.param("angle_env", 90.0)*M_PI/180.0);
-	AirPressure = (nh.param("AirPressure", 1.0));
+	lat_env = (nh->declare_parameter("lat_env", 48.418079));
+	long_env = (nh->declare_parameter("long_env", -4.473487));
+	alt_env = (nh->declare_parameter("alt_env", 88.0));
+	angle_env = (M_PI/2.0-nh->declare_parameter("angle_env", 90.0)*M_PI/180.0);
+	AirPressure = (nh->declare_parameter("AirPressure", 1.0));
 
-	robid = (nh.param("robid", BUGGY_ROBID)); // Normally not used if bExternal is 1 in MAVLinkDevice0.txt...
+	robid = (nh->declare_parameter("robid", BUGGY_ROBID)); // Normally not used if bExternal is 1 in MAVLinkDevice0.txt...
 
 	InitGlobals();
 
-	ros::Publisher cmd_vel_pub = nh.advertise<geometry_msgs::Twist>(nh.param<std::string>("cmd_vel/topic", "/cmd_vel"), nh.param("cmd_vel/queue", 1000));
-	ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>(nh.param<std::string>("imu/topic", "/imu/data"), nh.param("imu/queue", 1000), imuCb);
-	ros::Subscriber fix_sub = nh.subscribe<sensor_msgs::NavSatFix>(nh.param<std::string>("fix/topic", "/fix"), nh.param("fix/queue", 1000), fixCb);
-	ros::Subscriber vel_sub = nh.subscribe<geometry_msgs::TwistStamped>(nh.param<std::string>("vel/topic", "/vel"), nh.param("vel/queue", 1000), velCb);
+	const auto cmd_vel_topic = nh->declare_parameter<std::string>("cmd_vel.topic", "/cmd_vel");
+	const auto cmd_vel_queue = nh->declare_parameter("cmd_vel.queue", 1000);
+	const bool cmd_vel_stamped = nh->declare_parameter("cmd_vel.stamped", false);
+	rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub;
+	rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_vel_stamped_pub;
+	if (cmd_vel_stamped)
+		cmd_vel_stamped_pub = nh->create_publisher<geometry_msgs::msg::TwistStamped>(cmd_vel_topic, cmd_vel_queue);
+	else
+		cmd_vel_pub = nh->create_publisher<geometry_msgs::msg::Twist>(cmd_vel_topic, cmd_vel_queue);
+	auto imu_sub = nh->create_subscription<sensor_msgs::msg::Imu>(nh->declare_parameter<std::string>("imu.topic", "/imu/data"), rclcpp::SensorDataQoS().keep_last(nh->declare_parameter("imu.queue", 1000)), imuCb);
+	auto fix_sub = nh->create_subscription<sensor_msgs::msg::NavSatFix>(nh->declare_parameter<std::string>("fix.topic", "/fix"), rclcpp::SensorDataQoS().keep_last(nh->declare_parameter("fix.queue", 1000)), fixCb);
+	auto vel_sub = nh->create_subscription<geometry_msgs::msg::TwistStamped>(nh->declare_parameter<std::string>("vel.topic", "/vel"), rclcpp::SensorDataQoS().keep_last(nh->declare_parameter("vel.queue", 1000)), velCb);
 
-	ros::Duration(2.0).sleep();
+	rclcpp::sleep_for(std::chrono::seconds(2));
 
 	CreateDefaultThread(MAVLinkDeviceThread, NULL, &MAVLinkDeviceThreadId);
 	DetachThread(MAVLinkDeviceThreadId); // Not easy to stop it correctly...
 	CreateDefaultThread(VectorNavInterfaceThread, NULL, &VectorNavInterfaceThreadId);
 	DetachThread(VectorNavInterfaceThreadId); // Not easy to stop it correctly...
 
-	ros::Rate rate(nh.param("rate", 50));
+	rclcpp::WallRate rate(nh->declare_parameter("rate", 50));
+	rclcpp::executors::SingleThreadedExecutor executor;
+	executor.add_node(nh);
 
-	while (ros::ok()) {
-		sensor_msgs::Imu imu_enu_msg;
-		geometry_msgs::TwistStamped vel_enu_msg;
-		geometry_msgs::Twist cmd_vel_msg;
+	while (rclcpp::ok()) {
+		sensor_msgs::msg::Imu imu_enu_msg;
+		geometry_msgs::msg::TwistStamped vel_enu_msg;
+		geometry_msgs::msg::Twist cmd_vel_msg;
 
 		rate.sleep();
 
-		ros::spinOnce();
+		if (!rclcpp::ok()) break;
+		executor.spin_some();
 
 		EnterCriticalSection(&StateVariablesCS);
 
@@ -135,10 +137,10 @@ int main(int argc, char** argv) {
 		imu_enu_msg.angular_velocity.x = imu_angular_velocity(0); imu_enu_msg.angular_velocity.y = imu_angular_velocity(1); imu_enu_msg.angular_velocity.z = imu_angular_velocity(2);
 		Eigen::Vector4d imu_linear_acceleration = imu_linear_acceleration_transform_matrix*Eigen::Vector4d(imu_msg.linear_acceleration.x, imu_msg.linear_acceleration.y, imu_msg.linear_acceleration.z, 1.0);
 		imu_enu_msg.linear_acceleration.x = imu_linear_acceleration(0); imu_enu_msg.linear_acceleration.y = imu_linear_acceleration(1); imu_enu_msg.linear_acceleration.z = imu_linear_acceleration(2);
-		tf::Quaternion q;
+		tf2::Quaternion q;
 		double roll = 0, pitch = 0, yaw = 0;
-		tf::quaternionMsgToTF(imu_msg.orientation, q);
-		tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
+		tf2::fromMsg(imu_msg.orientation, q);
+		tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
 		Eigen::Vector4d imu_RPY = imu_RPY_transform_matrix*Eigen::Vector4d(roll, pitch, yaw, 1.0);
 		roll = imu_RPY(0); pitch = imu_RPY(1); yaw = imu_RPY(2);
 		q.setRPY(roll, pitch, yaw);
@@ -162,18 +164,18 @@ int main(int argc, char** argv) {
 		{
 			switch (fix_msg.status.status)
 			{
-			case sensor_msgs::NavSatStatus::STATUS_FIX:
-			case sensor_msgs::NavSatStatus::STATUS_SBAS_FIX:
+			case sensor_msgs::msg::NavSatStatus::STATUS_FIX:
+			case sensor_msgs::msg::NavSatStatus::STATUS_SBAS_FIX:
 				GNSSqualitySimulator = AUTONOMOUS_GNSS_FIX;
 				GPS_high_acc_nbsat = GPS_med_acc_nbsat = GPS_low_acc_nbsat = 20;
 				GPS_high_acc_HDOP = GPS_med_acc_HDOP = GPS_low_acc_HDOP = 1.0;
 				break;
-			case sensor_msgs::NavSatStatus::STATUS_GBAS_FIX:
+			case sensor_msgs::msg::NavSatStatus::STATUS_GBAS_FIX:
 				GNSSqualitySimulator = RTK_FLOAT;
 				GPS_high_acc_nbsat = GPS_med_acc_nbsat = GPS_low_acc_nbsat = 20;
 				GPS_high_acc_HDOP = GPS_med_acc_HDOP = GPS_low_acc_HDOP = 0.8;
 				break;
-			case sensor_msgs::NavSatStatus::STATUS_NO_FIX:
+			case sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX:
 			default:
 				GNSSqualitySimulator = GNSS_NO_FIX;
 				GPS_high_acc_nbsat = GPS_med_acc_nbsat = GPS_low_acc_nbsat = 0;
@@ -181,10 +183,10 @@ int main(int argc, char** argv) {
 				break;
 			}
 		}
-		//tf::Quaternion q;
+		//tf2::Quaternion q;
 		//double roll = 0, pitch = 0, yaw = 0;
-		//tf::quaternionMsgToTF(imu_enu_msg.orientation, q);
-		//tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
+		//tf2::fromMsg(imu_enu_msg.orientation, q);
+		//tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
 		phihat = fmod_2PI(roll); thetahat = fmod_2PI(pitch); psihat = fmod_2PI(0*M_PI/2.0+yaw-angle_env);
 		omegaxhat = imu_enu_msg.angular_velocity.x; omegayhat = imu_enu_msg.angular_velocity.y; omegazhat = imu_enu_msg.angular_velocity.z;
 		accrxhat = imu_enu_msg.linear_acceleration.x; accryhat = imu_enu_msg.linear_acceleration.y; accrzhat = imu_enu_msg.linear_acceleration.z;
@@ -211,10 +213,19 @@ int main(int argc, char** argv) {
 
 		LeaveCriticalSection(&StateVariablesCS);
 
-		cmd_vel_pub.publish(cmd_vel_msg);
+		if (cmd_vel_stamped)
+		{
+			geometry_msgs::msg::TwistStamped stamped;
+			stamped.header.stamp = nh->now();
+			stamped.twist = cmd_vel_msg;
+			cmd_vel_stamped_pub->publish(stamped);
+		}
+		else
+			cmd_vel_pub->publish(cmd_vel_msg);
 	}
 
 	ReleaseGlobals();
 
+	rclcpp::shutdown();
 	return EXIT_SUCCESS;
 }
